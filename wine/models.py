@@ -1,7 +1,8 @@
 from django.db import models
 
 # Create your models here.
-class WineDetails(models.Model):
+class WineData(models.Model):
+    id = models.IntegerField(primary_key=True)
     url = models.TextField(blank=True, null=True)
     site = models.IntegerField(blank=True, null=True)
     price = models.IntegerField(blank=True, null=True)
@@ -22,6 +23,31 @@ class WineDetails(models.Model):
     pairing = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
-        db_table = 'wine_details'
-        app_label = 'mysql_db'
+        managed = True
+        db_table = 'wine_data'
+        
+        
+class Conversation(models.Model):
+    id = models.AutoField(primary_key=True)
+    timestamp = models.DateTimeField(auto_created=True)
+    last_modified = models.DateTimeField(auto_now=True)
+    length = models.IntegerField(default=0)
+    
+    
+class Utterance(models.Model):
+    UTTERANCE_CATEGORY = (
+        (0, 'Start of conversation'),
+        (1, 'Ask wine'),
+        (2, 'Common')
+    )
+    id = models.AutoField(primary_key=True)
+    user_side = models.BooleanField(default=True) ## 발화자가 유저인지 AI인지
+    timestamp = models.DateTimeField(auto_created=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE)
+    text = models.TextField(max_length=500) ## 발화내용
+    category = models.IntegerField(choices=UTTERANCE_CATEGORY) ## 발화 카테고리
+    
+class WineRecommendation(models.Model):
+    id = models.AutoField(primary_key=True)
+    timestamp = models.DateTimeField(auto_created=True)
+    utterance = models.ForeignKey(Utterance, on_delete=models.CASCADE)

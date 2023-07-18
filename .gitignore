@@ -1,1 +1,9 @@
 **.pyc
+ai/chroma_db
+ai/assets
+ai/data/wine_and_more/img
+ai/vivino-api
+ai/winenara_scrapy
+ai/notebooks
+**.parquet
+**.ini

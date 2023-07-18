@@ -11,6 +11,24 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+import configparser
+
+config = configparser.ConfigParser()
+config.read('main/secrets.ini')
+OPENAI_API_KEY = config['OPENAI']['OPENAI_API_KEY']
+SERPER_API_KEY = config['SERPER']['SERPER_API_KEY']
+SERP_API_KEY = config['SERPAPI']['SERPAPI_API_KEY']
+KAKAO_API_KEY = config['KAKAO_MAP']['KAKAO_API_KEY']
+HUGGINEFACE_TOKEN = config['HUGGINGFACE']['HUGGINGFACE_TOKEN']
+
+os.environ.update({'OPENAI_API_KEY': OPENAI_API_KEY})
+os.environ.update({'SERPER_API_KEY': SERPER_API_KEY})
+os.environ.update({'SERPAPI_API_KEY': SERP_API_KEY})
+os.environ.update({'KAKAO_API_KEY': KAKAO_API_KEY})
+os.environ.update({'HUGGINGFACE_TOKEN': HUGGINEFACE_TOKEN})
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +45,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["pch-home-server3143.iptime.org","wine-api.audrey.kr"]
 
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True
+
 
 # Application definition
 
@@ -37,14 +58,20 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "wine"
+    "wine",
+    "corsheaders"
 ]
 
+
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'csp.middleware.CSPMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -75,13 +102,13 @@ WSGI_APPLICATION = 'main.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # },
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    'mysql_db': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'audrey_wine',
+        'NAME': 'audrey_winechat',
         'USER': 'devch1013',
         'PASSWORD': 'awg84329@#',
         'HOST': '192.168.0.70',
