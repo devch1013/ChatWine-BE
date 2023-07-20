@@ -23,7 +23,12 @@ from langchain.chains.query_constructor.base import AttributeInfo
 from langchain.document_loaders import DataFrameLoader, SeleniumURLLoader
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.indexes import VectorstoreIndexCreator
-from langchain.prompts import PromptTemplate, StringPromptTemplate, load_prompt, BaseChatPromptTemplate
+from langchain.prompts import (
+    PromptTemplate,
+    StringPromptTemplate,
+    load_prompt,
+    BaseChatPromptTemplate,
+)
 from langchain.llms import OpenAI
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain.schema import AgentAction, AgentFinish, HumanMessage, Document
@@ -42,15 +47,16 @@ conversation_stages_dict = {
     "6": "Location Suggestions: Recommend wine bars based on the customer's location and occasion. Before making a recommendation, always use the map tool to find the district of the customer's preferred location. Then use the wine bar database tool to find a suitable wine bar. Provide form of product cards in a list format with the wine bar's name, url, rating, address, menu, opening_hours, holidays, phone, summary, and image with img_urls.",
     "7": "Concluding the Conversation: Respond appropriately to the customer's comments to wrap up the conversation.",
     "8": "Questions and Answers: This stage involves answering customer's inquiries. Use the search tool or wine database tool to provide specific answers where possible. Describe answer as detailed as possible",
-    "9": "Other Situations: Use this step when the situation does not fit into any of the steps between 1 and 8."
+    "9": "Other Situations: Use this step when the situation does not fit into any of the steps between 1 and 8.",
 }
+
 
 class CustomPromptTemplate(StringPromptTemplate):
     # The template to use
     template: str
     # The list of tools available
-    tools: List[Any]   
-    
+    tools: List[Any]
+
     def format(self, **kwargs) -> str:
         stage_number = kwargs.pop("stage_number")
         kwargs["conversation_stage"] = conversation_stages_dict[stage_number]
@@ -62,19 +68,22 @@ class CustomPromptTemplate(StringPromptTemplate):
         for action, observation in intermediate_steps:
             thoughts += action.log
 
-            if ('Desired Outcome: ' in action.log) and (('Action: wine_database' in action.log) or ('Action: wine_bar_database' in action.log)):
+            if ("Desired Outcome: " in action.log) and (
+                ("Action: wine_database" in action.log)
+                or ("Action: wine_bar_database" in action.log)
+            ):
                 regex = r"Desired Outcome:(.*)"
                 match = re.search(regex, action.log, re.DOTALL)
                 if not match:
                     raise ValueError(f"Could not parse Desired Outcome: `{action.log}`")
-                desired_outcome_keys = [key.strip() for key in match.group(1).split(',')]
+                desired_outcome_keys = [key.strip() for key in match.group(1).split(",")]
 
-                pattern = re.compile(r'metadata=\{(.*?)\}')
-                matches = pattern.findall(f'{observation}')
-                documents = ['{'+f'{match}'+'}' for match in matches]
-                
+                pattern = re.compile(r"metadata=\{(.*?)\}")
+                matches = pattern.findall(f"{observation}")
+                documents = ["{" + f"{match}" + "}" for match in matches]
+
                 pattern = re.compile(r"'(\w+)':\s*('[^']+'|\b[^\s,]+\b)")
-                output=[]
+                output = []
 
                 for doc in documents:
                     # Extract key-value pairs from the document string
@@ -88,11 +97,11 @@ class CustomPromptTemplate(StringPromptTemplate):
                     for key in desired_outcome_keys:
                         value = doc_dict.get(key, "")
                         for c in special_chars:
-                            value = value.replace(c, "")                        
+                            value = value.replace(c, "")
                         item_dict[key] = value
                     output.append(item_dict)
-                
-                observation = ','.join([str(i) for i in output])
+
+                observation = ",".join([str(i) for i in output])
 
             thoughts += f"\nObservation: {observation}\nThought: "
         # Set the agent_scratchpad variable to that value
@@ -103,10 +112,11 @@ class CustomPromptTemplate(StringPromptTemplate):
         kwargs["tool_names"] = ", ".join([tool.name for tool in self.tools])
         return self.template.format(**kwargs)
 
+
 class CustomOutputParser(AgentOutputParser):
-    
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         # Check if agent should finish
+        print(llm_output)
         if "이우선: " in llm_output:
             return AgentFinish(
                 # Return values is generally always a dictionary with a single `output` key
@@ -124,7 +134,9 @@ class CustomOutputParser(AgentOutputParser):
         # desired_outcome = match.group(3).strip() if match.group(3) else None
 
         # Return the action and action input
-        return AgentAction(tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output)
+        return AgentAction(
+            tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output
+        )
 
 
 class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
@@ -133,6 +145,7 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
 
     The output will be streamed until "<END" is reached.
     """
+
     def __init__(
         self,
         *,
@@ -140,7 +153,7 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
         end_prefix_tokens: str = "<END",
         strip_tokens: bool = True,
         stream_prefix: bool = False,
-        sender: str
+        queue,
     ) -> None:
         """Instantiate EofStreamingStdOutCallbackHandler.
 
@@ -154,10 +167,14 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
                 reached)
             stream_prefix: Should answer prefix itself also be streamed?
         """
-        super().__init__(answer_prefix_tokens=answer_prefix_tokens, strip_tokens=strip_tokens, stream_prefix=stream_prefix)
+        super().__init__(
+            answer_prefix_tokens=answer_prefix_tokens,
+            strip_tokens=strip_tokens,
+            stream_prefix=stream_prefix,
+        )
         self.end_prefix_tokens = end_prefix_tokens
         self.end_reached = False
-        self.sender = sender
+        self.queue = queue
 
     def append_to_last_tokens(self, token: str) -> None:
         self.last_tokens.append(token)
@@ -166,32 +183,30 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
             self.last_tokens.pop(0)
             self.last_tokens_stripped.pop(0)
 
-    def on_llm_start(
-        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
-    ) -> None:
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
         """Run when LLM starts running."""
         self.answer_reached = False
         self.end_reached = False
 
     def check_if_answer_reached(self) -> bool:
         if self.strip_tokens:
-            return ''.join(self.last_tokens_stripped) in self.answer_prefix_tokens_stripped
+            return "".join(self.last_tokens_stripped) in self.answer_prefix_tokens_stripped
         else:
-            unfied_last_tokens = ''.join(self.last_tokens)
+            unfied_last_tokens = "".join(self.last_tokens)
             try:
                 unfied_last_tokens.index(self.answer_prefix_tokens)
                 return True
             except:
                 return False
-            
+
     def check_if_end_reached(self) -> bool:
         if self.strip_tokens:
-            return ''.join(self.last_tokens_stripped) in self.answer_prefix_tokens_stripped
+            return "".join(self.last_tokens_stripped) in self.answer_prefix_tokens_stripped
         else:
-            unfied_last_tokens = ''.join(self.last_tokens)
+            unfied_last_tokens = "".join(self.last_tokens)
             try:
                 unfied_last_tokens.index(self.end_prefix_tokens)
-                self.sender[1] = True
+                # self.queue[1] = True
                 return True
             except:
                 return False
@@ -199,9 +214,9 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Run on new LLM token. Only available when streaming is enabled."""
         # Remember the last n tokens, where n = len(answer_prefix_tokens)
-        print(token)
+        # print(token)
         self.append_to_last_tokens(token)
-        print("1")
+        # print("1")
         # Check if the last n tokens match the answer_prefix_tokens list ...
         if not self.answer_reached and self.check_if_answer_reached():
             self.answer_reached = True
@@ -210,10 +225,10 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
                     sys.stdout.write(t)
                 sys.stdout.flush()
             return
-        
-        print("2")
-        print(self.sender)
-        
+
+        # print("2")
+        # print(self.queue)
+
         if not self.end_reached and self.check_if_end_reached():
             self.end_reached = True
 
@@ -223,12 +238,16 @@ class CustomStreamingStdOutCallbackHandler(FinalStreamingStdOutCallbackHandler):
             if self.last_tokens[-2] == ":":
                 pass
             else:
-                self.sender[0] += self.last_tokens[-2]
-                
-        print("3")
+                # self.queue[0] += self.last_tokens[-2]
+                self.queue.put(self.last_tokens[-2])
+
+        # print("3")
+
 
 class Agent:
-    def __init__(self, tools, template_path='ai/templates/agent_prompt_templete.txt', verbose=False):
+    def __init__(
+        self, tools, template_path="ai/templates/agent_prompt_templete.txt", verbose=False
+    ):
         # config = configparser.ConfigParser()
         # config.read('./secrets.ini')
         # openai_api_key = config['OPENAI']['OPENAI_API_KEY']
@@ -237,40 +256,65 @@ class Agent:
         # kakao_api_key = config['KAKAO_MAP']['KAKAO_API_KEY']
         # huggingface_token = config['HUGGINGFACE']['HUGGINGFACE_TOKEN']
 
-        
-        
-        template_path = 'ai/templates/agent_prompt_templete.txt'
-        with open(template_path, 'r') as f:
+        template_path = "ai/templates/agent_prompt_templete.txt"
+        with open(template_path, "r") as f:
             template = f.read()
 
         prompt = CustomPromptTemplate(
             template=template,
             tools=tools,
-            input_variables=["input", "intermediate_steps", "conversation_history", "stage_number"]
+            input_variables=["input", "intermediate_steps", "conversation_history", "stage_number"],
         )
-        
+
         output_parser = CustomOutputParser()
 
-        llm_chain = LLMChain(llm=ChatOpenAI(model='gpt-3.5-turbo', temperature=0.5, streaming=True), prompt=prompt, verbose=verbose,)
+        llm_chain = LLMChain(
+            llm=ChatOpenAI(model="gpt-3.5-turbo", temperature=0.5, streaming=True),
+            prompt=prompt,
+            verbose=verbose,
+        )
 
         tool_names = [tool.name for tool in tools]
         agent = LLMSingleActionAgent(
-            llm_chain=llm_chain, 
+            llm_chain=llm_chain,
             output_parser=output_parser,
-            stop=["\nObservation:"], 
-            allowed_tools=tool_names
+            stop=["\nObservation:"],
+            allowed_tools=tool_names,
         )
 
-        self.agent_executor = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=verbose)
+        self.agent_executor = AgentExecutor.from_agent_and_tools(
+            agent=agent, tools=tools, verbose=verbose
+        )
 
     async def arun(self, sender, *args, **kwargs):
-        resp = await self.agent_executor.arun(kwargs, callbacks=[CustomStreamingStdOutCallbackHandler(answer_prefix_tokens='이우선:', end_prefix_tokens='<END', strip_tokens=False, sender=sender)])
+        resp = await self.agent_executor.arun(
+            kwargs,
+            callbacks=[
+                CustomStreamingStdOutCallbackHandler(
+                    answer_prefix_tokens="이우선:",
+                    end_prefix_tokens="<END",
+                    strip_tokens=False,
+                    sender=sender,
+                )
+            ],
+        )
         return resp
-    
-    def run(self, sender, *args, **kwargs):
-        resp = self.agent_executor.run(kwargs, callbacks=[CustomStreamingStdOutCallbackHandler(answer_prefix_tokens='이우선:', end_prefix_tokens='<END', strip_tokens=False, sender=sender)])
+
+    def run(self, queue, *args, **kwargs):
+        resp = self.agent_executor.run(
+            kwargs,
+            callbacks=[
+                CustomStreamingStdOutCallbackHandler(
+                    answer_prefix_tokens="이우선:",
+                    end_prefix_tokens="<END",
+                    strip_tokens=False,
+                    queue=queue,
+                )
+            ],
+        )
         return resp
-    
+
+
 if __name__ == "__main__":
 
     tools = [

@@ -101,7 +101,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
     wine_vectorstore: Any
     wine_retriever: Any
 
-    def __init__(self, data_path:str='./data/unified_wine_data.json', 
+    def __init__(self, data_path:str='ai/data/unified_wine_data.json', 
                 page_content_columns:List=['name', 'pairing'], 
                 float_columns:List=['rating', 'price', 'body', 'sweetness', 'alcohol', 'acidity', 'tannin'], 
                 drop_columns:List=[],
@@ -111,7 +111,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
         embeddings = OpenAIEmbeddings()
         try:
             # raise NotImplementedError()
-            self.wine_vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+            self.wine_vectorstore = Chroma(persist_directory="ai/chroma_db", embedding_function=embeddings)
             print("WineDatabaseTool: Loading vectorstore from disk")
         except:
             ### Load wine database json
@@ -137,7 +137,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
             docs = loader.load()
             embeddings = OpenAIEmbeddings()
 
-            self.wine_vectorstore = Chroma.from_documents(docs, embeddings, persist_directory="./chroma_db")
+            self.wine_vectorstore = Chroma.from_documents(docs, embeddings, persist_directory="ai/chroma_db")
             self.wine_vectorstore.persist()
 
         document_content_description = "A database of wines. 'name' and 'pairing' must be included in the query, and 'Body', 'Tannin', 'Sweetness', 'Alcohol', 'Price', 'Rating', 'Wine_Type', and 'Country' can be included in the filter. query and filter must be form of 'key: value'. For example, query: 'name: 돔페리뇽, pairing:육류'."
@@ -232,7 +232,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
     wine_bar_vectorstore: Any
     wine_bar_retriever: Any
 
-    def __init__(self, data_path:str='./data/wine_bar_data.json', 
+    def __init__(self, data_path:str='ai/data/wine_bar_data.json', 
                 page_content_columns:List=['summary'],
                 float_columns:List=[],
                 drop_columns:List=['review'],
@@ -242,7 +242,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
         embeddings = OpenAIEmbeddings()
         try:
             # raise NotImplementedError()
-            self.wine_bar_vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+            self.wine_bar_vectorstore = Chroma(persist_directory="ai/chroma_db", embedding_function=embeddings)
             print("WineBarDatabaseTool: Loading vectorstore from disk")
         except:
             ### Load wine database json
@@ -265,7 +265,7 @@ The form of Desired Outcome must be 'key1, key2, ...'. For example to get the na
             loader =DataFrameLoader(data_frame=df, page_content_column='page_content')
             docs = loader.load()
             
-            self.wine_bar_vectorstore = Chroma.from_documents(docs, embeddings, persist_directory="./chroma_db")
+            self.wine_bar_vectorstore = Chroma.from_documents(docs, embeddings, persist_directory="ai/chroma_db")
             self.wine_bar_vectorstore.persist()
         document_content_description = "Database of a winebar"
         llm = OpenAI(temperature=0)
