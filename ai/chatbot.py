@@ -59,19 +59,22 @@ class Audrey:
         if pre_chat_history != "":
             pre_chat_history += "<END_OF_TURN>"
 
-        q = Queue()
+        q = list()
         job_done = object()
+        done_flag = None
         print("before thread")
         start = time()
+
+        user_str = "User: " + user_response + " <END_OF_TURN>"
 
         def chat_task():
             self.agent.run(
                 queue=q,
-                input="User: " + user_response + " <END_OF_TURN>\n",
+                input=user_str,
                 conversation_history=pre_chat_history,
                 stage_number=current_stage,
             )
-            q.put(job_done)
+            q.append(job_done)
 
         # t = threading.Thread(target = self.agent.run, args=sender, kwargs= {"input": user_response+' <END_OF_TURN>\n', "conversation_history": pre_chat_history, "stage_number": current_stage})
         t = threading.Thread(target=chat_task)
@@ -79,16 +82,61 @@ class Audrey:
         print("threading started")
         # yield "이우선: "
         content = ""
+        wait_flag = False
+        next_token = None
         while True:
-            try:
-                next_token = q.get(True, timeout=1)
-                # print(next_token, end="")
-                if next_token is job_done:
-                    break
-                content += next_token
-                yield next_token
-            except Empty:
-                continue
+            if not wait_flag:
+
+                ## 4개
+                if job_done in q:
+                    next_token = q.pop(0)
+                    if next_token == job_done:
+                        break
+                    content += next_token
+                    print(next_token)
+                    yield next_token
+                else:
+                    if len(q) > 3:
+                        next_token = q.pop(0)
+                        ## 3개
+                        if job_done not in q:
+                            wait_flag, last_token_before_anchor = check_anchor(q, anchor="###")
+                            if wait_flag:
+                                ## 대기
+                                card_content = ""
+                                next_token += last_token_before_anchor
+                                for _ in range(len(q)):
+                                    q.pop(0)
+                        content += next_token
+                        print(next_token)
+                        yield next_token
+                    # print(next_token, end="")
+
+            else:  ##
+                try:
+                    next_token = q.pop(0)
+                    if next_token == job_done:
+                        break
+                    print("card content: ", card_content)
+                    card_content += next_token
+                    # print(card_content)
+                    if "###" in card_content:
+                        ## DB 찾기
+                        inform = """{
+                                'title': '우나니메 말벡 \nUNANIME MALBEC',
+                                'image':
+                                    'https://www.winenara.com/uploads/product/550/2636_detail_091.png',
+                                'description':
+                                    '라 마스코타의 블렌딩 철학을 일축한 마스코타 코어 레인지, 프리미엄 레드 와인. 우나니메의 뜻은 만장일치 라는 뜻으로, 모든 메이커의 만장일치로 뽑은 최고의 포도로 탄생한 와인',
+                                "price": "59,000",
+                                }"""
+                        print("wine: ", inform)
+                        yield inform
+                        wait_flag = False
+
+                except:
+                    continue
+
         print("context: ", content)
         time_to_response = int((time() - start) * 1000)
         utter = save_conversation(
@@ -99,13 +147,14 @@ class Audrey:
             time_to_response=time_to_response,
         )
 
+        print(chat_history + user_str + f"이우선: {content}<END_OF_TURN>")
+
         response_examples = self.bot_response_pred(
-            chat_history=chat_history,
+            chat_history=chat_history + user_str + f"이우선: {content}<END_OF_TURN>",
         )
 
         ex_id = save_example(utter, response_examples)
-        yield "#####"
-        yield "example_id:" + ex_id
+        yield "#####chat_id:" + str(conversation_object.id) + "#####ex_id:" + ex_id
         print(response_examples)
         # return response_examples
 
@@ -151,3 +200,12 @@ class Audrey:
             conversation_object=conversation_object,
         )
         # return self.bot_response_pred(chat_hist)
+
+
+def check_anchor(q: list, anchor: str = "###"):
+    print(q)
+    text = "".join(q)
+    if text.endswith(anchor):
+        return True, text[:-3]
+    else:
+        return False, ""
