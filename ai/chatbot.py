@@ -6,6 +6,7 @@ import threading
 import time
 from queue import Queue, Empty
 from time import time
+from ai.utils.streaming_queue import StreamingQueue
 
 import asyncio
 
@@ -59,9 +60,8 @@ class Audrey:
         if pre_chat_history != "":
             pre_chat_history += "<END_OF_TURN>"
 
-        q = list()
-        job_done = object()
-        done_flag = None
+        streaming_queue = StreamingQueue()
+        streaming_queue.set_anchor("###")
         print("before thread")
         start = time()
 
@@ -69,12 +69,12 @@ class Audrey:
 
         def chat_task():
             self.agent.run(
-                queue=q,
+                queue=streaming_queue,
                 input=user_str,
                 conversation_history=pre_chat_history,
                 stage_number=current_stage,
             )
-            q.append(job_done)
+            streaming_queue.end_job()
 
         # t = threading.Thread(target = self.agent.run, args=sender, kwargs= {"input": user_response+' <END_OF_TURN>\n', "conversation_history": pre_chat_history, "stage_number": current_stage})
         t = threading.Thread(target=chat_task)
@@ -82,43 +82,44 @@ class Audrey:
         print("threading started")
         # yield "이우선: "
         content = ""
-        wait_flag = False
         next_token = None
         while True:
-            if not wait_flag:
-
+            if not streaming_queue.is_waiting():
+                if streaming_queue.is_end():
+                    break
                 ## 4개
-                if job_done in q:
-                    next_token = q.pop(0)
-                    if next_token == job_done:
-                        break
+                if streaming_queue.is_streaming_end():
+                    next_token = streaming_queue.get()
                     content += next_token
                     print(next_token)
                     yield next_token
                 else:
-                    if len(q) > 3:
-                        next_token = q.pop(0)
+                    if len(streaming_queue) > 3:
+                        next_token = streaming_queue.get()
                         ## 3개
-                        if job_done not in q:
-                            wait_flag, last_token_before_anchor = check_anchor(q, anchor="###")
-                            if wait_flag:
-                                ## 대기
-                                card_content = ""
-                                next_token += last_token_before_anchor
-                                for _ in range(len(q)):
-                                    q.pop(0)
+                        if streaming_queue.is_streaming_end() == False:
+                            anchor_point = streaming_queue.check_anchor_point()
+                            if anchor_point:
+                                if anchor_point == "Front":
+                                    card_content = ""
+                                elif anchor_point == "Back":
+                                    ## 대기
+                                    card_content = ""
+                                    next_token += streaming_queue.get()
+                                streaming_queue.wait()
                         content += next_token
                         print(next_token)
                         yield next_token
                     # print(next_token, end="")
 
             else:  ##
-                try:
-                    next_token = q.pop(0)
-                    if next_token == job_done:
+                if not streaming_queue.is_empty():
+                    if streaming_queue.is_end():
                         break
-                    print("card content: ", card_content)
+                    next_token = streaming_queue.get()
+
                     card_content += next_token
+                    print("card content: ", card_content)
                     # print(card_content)
                     if "###" in card_content:
                         ## DB 찾기
@@ -132,10 +133,7 @@ class Audrey:
                                 }"""
                         print("wine: ", inform)
                         yield inform
-                        wait_flag = False
-
-                except:
-                    continue
+                        streaming_queue.release()
 
         print("context: ", content)
         time_to_response = int((time() - start) * 1000)
