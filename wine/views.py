@@ -11,8 +11,14 @@ import json
 
 
 def test(request):
-    print(request)
-    return HttpResponse({"hello": "ok"})
+    result = streaming("hhihihih")
+    response = StreamingHttpResponse(result, status=200, content_type="text/event-stream")
+    # print(response)
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    print(response)
+    return response
 
 
 @csrf_exempt

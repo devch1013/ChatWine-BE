@@ -59,3 +59,7 @@ class ChatExamples(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     utterance = models.ForeignKey(Utterance, on_delete=models.CASCADE)
     example = models.TextField(max_length=500, blank=True, null=True)
+
+
+class WineBar(models.Model):
+    id = models.AutoField(primary_key=True)

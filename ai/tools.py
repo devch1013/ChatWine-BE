@@ -337,7 +337,10 @@ class KakaoMapTool(BaseTool):
     ):
         params = {'query': query,'page': 1}
         places = requests.get(self.url, params=params, headers=self.headers).json()
-        address = places['documents'][0]['address_name']
+        try:
+            address = places['documents'][0]['address_name']
+        except:
+            return {'district':''}
         if not address.split()[0].startswith('서울'):
             return {'district': 'not in seoul'}
         else:

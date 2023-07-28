@@ -43,7 +43,7 @@ SECRET_KEY = "django-insecure-v+m6nad&+2j&avh%ujgz##)%0!^zrvealfw@r$a73$aon$fl0q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["pch-home-server3143.iptime.org", "wine-api.audrey.kr"]
+ALLOWED_HOSTS = ["pch-home-server3143.iptime.org", "wine-api.audrey.kr", "192.168.0.58"]
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
