@@ -4,21 +4,15 @@ from django.http import JsonResponse
 from django.http.response import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .apps import WineConfig
-from .models import Conversation, Utterance, ChatExamples
+from .models import Conversation, Utterance, ChatExamples, WineData
 import json
 
 # Create your views here.
 
 
 def test(request):
-    result = streaming("hhihihih")
-    response = StreamingHttpResponse(result, status=200, content_type="text/event-stream")
-    # print(response)
-    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response["Pragma"] = "no-cache"
-    response["Expires"] = "0"
-    print(response)
-    return response
+    print(WineData.objects.all()[:10])
+    return "hello"
 
 
 @csrf_exempt
@@ -62,7 +56,7 @@ def body2json(body):
 def get_chat_history(obj):
     utters = Utterance.objects.all().filter(conversation=obj).order_by("-timestamp")
     chat_hist = ""
-    for utter in utters[:2]:
+    for utter in utters[:2:-1]:
         chat_hist += "User: " + utter.user_side + "<END_OF_TURN>"
         chat_hist += "이우선: " + utter.ai_side + "<END_OF_TURN>"
     print(chat_hist)

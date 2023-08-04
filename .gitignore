@@ -5,5 +5,7 @@ ai/data/wine_and_more/img
 ai/vivino-api
 ai/winenara_scrapy
 ai/notebooks
+ai/data
 **.parquet
 **.ini
+.chroma

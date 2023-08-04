@@ -8,6 +8,8 @@ from queue import Queue, Empty
 from time import time
 from ai.utils.streaming_queue import StreamingQueue
 
+# from wine.models import WineData
+
 import asyncio
 
 
@@ -24,7 +26,7 @@ class Audrey:
         verbose = False
         self.assistant = Assistant(verbose=verbose)
         self.user_response_generator = UserResponseGenerator(verbose=verbose)
-        self.agent = Agent(tools=tools, verbose=verbose)
+        self.agent = Agent(tools=tools, verbose=True)
         ## 이우선: ㅁㅇㅁㄴㅇ<>, \n User
 
     def user_chat(self, user_message, chat_history):
@@ -55,6 +57,7 @@ class Audrey:
         conversation_object,
     ):  # stream output by yielding
         from wine.utils.chat import save_conversation, save_example
+        from ai.utils.formatter import wine_data_formatter
 
         pre_chat_history = "<END_OF_TURN>".join(chat_history.split("<END_OF_TURN>")[:-2])
         if pre_chat_history != "":
@@ -76,7 +79,6 @@ class Audrey:
             )
             streaming_queue.end_job()
 
-        # t = threading.Thread(target = self.agent.run, args=sender, kwargs= {"input": user_response+' <END_OF_TURN>\n', "conversation_history": pre_chat_history, "stage_number": current_stage})
         t = threading.Thread(target=chat_task)
         t.start()
         print("threading started")
@@ -95,7 +97,7 @@ class Audrey:
                     yield next_token
                 else:
                     if len(streaming_queue) > 3:
-                        next_token = streaming_queue.get()
+
                         ## 3개
                         if streaming_queue.is_streaming_end() == False:
                             anchor_point = streaming_queue.check_anchor_point()
@@ -107,6 +109,10 @@ class Audrey:
                                     card_content = ""
                                     next_token += streaming_queue.get()
                                 streaming_queue.wait()
+                            else:
+                                next_token = streaming_queue.get()
+                        else:
+                            next_token = streaming_queue.get()
                         content += next_token
                         print(next_token)
                         yield next_token
@@ -123,16 +129,12 @@ class Audrey:
                     # print(card_content)
                     if "###" in card_content:
                         ## DB 찾기
-                        inform = """{
-                                'title': '우나니메 말벡 \nUNANIME MALBEC',
-                                'image':
-                                    'https://www.winenara.com/uploads/product/550/2636_detail_091.png',
-                                'description':
-                                    '라 마스코타의 블렌딩 철학을 일축한 마스코타 코어 레인지, 프리미엄 레드 와인. 우나니메의 뜻은 만장일치 라는 뜻으로, 모든 메이커의 만장일치로 뽑은 최고의 포도로 탄생한 와인',
-                                "price": "59,000",
-                                }"""
-                        print("wine: ", inform)
-                        yield inform
+                        object_ids = extract_ids_from_string(card_content)
+                        card_data = "@@@" + wine_data_formatter(
+                            object_ids, wine_bar="bar" in card_content.lower()
+                        )
+                        print("wine: ", card_data)
+                        yield card_data
                         streaming_queue.release()
 
         print("context: ", content)
@@ -207,3 +209,12 @@ def check_anchor(q: list, anchor: str = "###"):
         return True, text[:-3]
     else:
         return False, ""
+
+
+import re
+
+
+def extract_ids_from_string(input_string):
+    pattern = r"\b\d+\b"
+    ids = re.findall(pattern, input_string)
+    return [int(id) for id in ids]
