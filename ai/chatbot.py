@@ -26,7 +26,7 @@ class Audrey:
         verbose = False
         self.assistant = Assistant(verbose=verbose)
         self.user_response_generator = UserResponseGenerator(verbose=verbose)
-        self.agent = Agent(tools=tools, verbose=True)
+        self.agent = Agent(tools=tools, verbose=verbose)
         ## 이우선: ㅁㅇㅁㄴㅇ<>, \n User
 
     def user_chat(self, user_message, chat_history):
@@ -34,7 +34,7 @@ class Audrey:
         return chat_history + f"User: {user_message} <END_OF_TURN>\n"
 
     def bot_stage_pred(self, user_response, chat_history, stage_history):
-        print(stage_history)
+        # print(stage_history)
         pre_chat_history = "<END_OF_TURN>".join(chat_history.split("<END_OF_TURN>")[:-2])
         if pre_chat_history != "":
             pre_chat_history += "<END_OF_TURN>"
@@ -65,7 +65,7 @@ class Audrey:
 
         streaming_queue = StreamingQueue()
         streaming_queue.set_anchor("###")
-        print("before thread")
+        # print("before thread")
         start = time()
 
         user_str = "User: " + user_response + " <END_OF_TURN>"
@@ -81,7 +81,7 @@ class Audrey:
 
         t = threading.Thread(target=chat_task)
         t.start()
-        print("threading started")
+        # print("threading started")
         # yield "이우선: "
         content = ""
         next_token = None
@@ -93,17 +93,19 @@ class Audrey:
                 if streaming_queue.is_streaming_end():
                     next_token = streaming_queue.get()
                     content += next_token
-                    print(next_token)
+                    # print(next_token)
                     yield next_token
                 else:
                     if len(streaming_queue) > 3:
 
-                        ## 3개
+                        ## 3개 
+                        
                         if streaming_queue.is_streaming_end() == False:
                             anchor_point = streaming_queue.check_anchor_point()
                             if anchor_point:
                                 if anchor_point == "Front":
                                     card_content = ""
+                                    next_token = ""
                                 elif anchor_point == "Back":
                                     ## 대기
                                     card_content = ""
@@ -113,8 +115,8 @@ class Audrey:
                                 next_token = streaming_queue.get()
                         else:
                             next_token = streaming_queue.get()
+                        print(next_token, end="")
                         content += next_token
-                        print(next_token)
                         yield next_token
                     # print(next_token, end="")
 
@@ -125,7 +127,7 @@ class Audrey:
                     next_token = streaming_queue.get()
 
                     card_content += next_token
-                    print("card content: ", card_content)
+                    # print("card content: ", card_content)
                     # print(card_content)
                     if "###" in card_content:
                         ## DB 찾기
@@ -133,11 +135,11 @@ class Audrey:
                         card_data = "@@@" + wine_data_formatter(
                             object_ids, wine_bar="bar" in card_content.lower()
                         )
-                        print("wine: ", card_data)
+                        # print("wine: ", card_data)
                         yield card_data
                         streaming_queue.release()
 
-        print("context: ", content)
+        # print("context: ", content)
         time_to_response = int((time() - start) * 1000)
         utter = save_conversation(
             conversation_object=conversation_object,
@@ -185,9 +187,8 @@ class Audrey:
         """
         유저 입력과 최근 대화 두번 필요
         """
-        print("user_chat")
         chat_hist = self.user_chat(msg, chat_history=chat_history)
-        print("stage_pred")
+        # print("stage_pred")
         cur_stage = self.bot_stage_pred(
             msg,
             chat_hist,
@@ -203,7 +204,7 @@ class Audrey:
 
 
 def check_anchor(q: list, anchor: str = "###"):
-    print(q)
+    # print(q)
     text = "".join(q)
     if text.endswith(anchor):
         return True, text[:-3]

@@ -25,10 +25,18 @@ def first_conversation(request):
 @csrf_exempt
 def conversation(request, conversation_id):
     if request.method == "POST":
+        
         conversation = Conversation.objects.get(id=conversation_id)
+        print(conversation.id)
 
         text = body2json(request.body).get("text")
-        print(text)
+        print("="*30)
+        print('conversation_id', conversation_id)
+        print('text', text)
+        print('conversation object', conversation.stage_history)
+        print('chat_history', get_chat_history(conversation))
+        print("stage_history", conversation.stage_history)
+        print("="*30)
         result = WineConfig.audrey.forward(
             text,
             conversation_object=conversation,
@@ -40,7 +48,7 @@ def conversation(request, conversation_id):
         response["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response["Pragma"] = "no-cache"
         response["Expires"] = "0"
-        print(response)
+        print('response', response)
         return response
     # else:
     #     result = WineConfig.audrey.forward("안녕")
@@ -59,7 +67,7 @@ def get_chat_history(obj):
     for utter in utters[:2:-1]:
         chat_hist += "User: " + utter.user_side + "<END_OF_TURN>"
         chat_hist += "이우선: " + utter.ai_side + "<END_OF_TURN>"
-    print(chat_hist)
+    print('chat_hist', chat_hist)
     return chat_hist
 
 

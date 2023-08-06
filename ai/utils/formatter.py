@@ -12,9 +12,10 @@ def wine_data_formatter(wine_ids: list, wine_bar: bool = False):
                 wine_bar_data = WineBar.objects.get(id=id)
                 data_dict["name"] = wine_bar_data.name
                 data_dict["address"] = wine_bar_data.address
-                data_dict["rating"] = wine_bar_data.rating
+                data_dict["rating"] = str(wine_bar_data.rating)
                 data_dict["img_url"] = wine_bar_data.img_url
                 data_dict["summary"] = wine_bar_data.summary
+                data_dict["url"] = wine_bar_data.url
                 formatted_list.append(data_dict)
             else:
                 wine_data = WineData.objects.get(id=id)
@@ -23,6 +24,7 @@ def wine_data_formatter(wine_ids: list, wine_bar: bool = False):
                 data_dict["image"] = wine_data.img_url
                 data_dict["description"] = wine_data.flavor_description
                 data_dict["price"] = str(wine_data.price)
+                data_dict["url"] = wine_data.url
                 formatted_list.append(data_dict)
 
         except:
