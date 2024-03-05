@@ -60,7 +60,7 @@ gradio app.py
 <br><br>
 
 # 🤖 MODEL
-![model](/assets/architecture.png)
+![model](/architecture.png)
 
 ## 구성 요소
 - Assistant : 대화 기록을 보고, 다음에 Agent가 취해야할 적절한 행동을 추론합니다.
